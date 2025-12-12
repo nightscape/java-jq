@@ -47,9 +47,40 @@ if( response.hasErrors() ) {
 }
 ```
 
+## Streaming API
+
+For better performance when processing multiple inputs or large data, use the streaming API which
+compiles the filter once and reuses it:
+
+```java
+JqLibrary library = ImmutableJqLibrary.of();
+
+try (JqFilter filter = JqFilter.compile(library, ".[] | select(.active)")) {
+    // Process multiple inputs with the same compiled filter
+    for (String json : jsonInputs) {
+        filter.process(json, output -> System.out.println(output));
+    }
+}
+```
+
+For very large inputs that should be processed incrementally, use chunked streaming:
+
+```java
+try (JqFilter filter = JqFilter.compile(library, ".items[]")) {
+    try (JqStreamProcessor processor = filter.createStreamProcessor(output -> {
+        System.out.println(output);
+    })) {
+        // Feed chunks as they arrive (e.g., from a network stream)
+        processor.feedChunk("{\"items\": [", false);
+        processor.feedChunk("{\"id\": 1}, {\"id\": 2}", false);
+        processor.feedChunk("]}", true);  // finished=true on last chunk
+    }
+}
+```
+
 ## Compatibility
 
-As of version 1.1.0, java-jq successfully executes the complete [jq](http://stedolan.github.io/jq/) 
+As of version 1.1.0, java-jq successfully executes the complete [jq](http://stedolan.github.io/jq/)
 test suite, including all tests in jq.test, onig.test, base64.test, and optional.test.
 
 java-jq supports modules as well. To use modules, include the directory paths where your modules
